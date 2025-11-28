@@ -1,0 +1,64 @@
+using System;
+using System.Windows; // Необходимо для использования MessageBox
+
+public class UserInfoApp
+{
+    // Используем P/Invoke для вызова функции MessageBox из User32.dll
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+    private static extern int MessageBox(
+        IntPtr hWnd,          // Хэндл родительского окна (0 для рабочего стола)
+        string text,          // Текст сообщения
+        string caption,       // Заголовок окна сообщения
+        int buttons);         // Кнопки и тип иконки (здесь используется MB_OK)
+
+    // Константы для MessageBox
+    private const int MB_OK = 0x00000000; // Отображает кнопку OK
+    private const int MB_OKCANCEL = 0x00000001; // Отображает кнопки OK и Cancel
+
+    private const int IDOK = 1; // Пользователь нажал OK
+    private const int IDCANCEL = 2; // Пользователь нажал Cancel
+
+    public static void Main(string[] args)
+    {
+
+        string myName = "Ярик";
+        int myAge = 18;
+        string myHobby = "Играть в игры";
+        // ----------------------------
+
+        // Отображаем информацию в нескольких MessageBox
+
+        // Первый  MessageBox 
+        int result = MessageBox(
+             IntPtr.Zero,            // Родительское окно - рабочий стол
+             $"Привет! Меня зовут {myName}.", // Текст сообщения
+             "Обо мне - Шаг 1",     // Заголовок окна
+             MB_OKCANCEL                // Вобор кнопак
+
+         );
+        if (result == IDOK)
+        {
+            // Второй MessageBox 
+            MessageBox(
+                IntPtr.Zero,
+                $"Мне {myAge} лет.",
+                "Я",
+                MB_OK
+            );
+
+            // Третий MessageBox 
+            MessageBox(
+                IntPtr.Zero,
+                $"Мое любимое хобби - {myHobby}.",
+                "Я",
+                MB_OK
+            );
+        
+        }
+        else if (result == IDCANCEL)
+        {
+            
+            Environment.Exit(0); 
+        }
+    }
+}
