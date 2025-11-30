@@ -1,111 +1,78 @@
 using System;
-using System.Runtime.InteropServices; // Для P/Invoke
-using System.Threading;             // Для Thread.Sleep
+using System.Drawing;
+using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
-public class SoundSignalApp
+public partial class Form1 : Form
 {
-    // --- Импорт функций Windows API ---
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-    /// <summary>
-    /// Beep: Издает простой звуковой сигнал.
-    /// frequency: Частота звука в Герцах (Гц). Диапазон: 37-32767.
-    /// duration: Длительность звука в миллисекундах (мс).
-    /// </summary>
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-    private static extern bool Beep(uint frequency, uint duration);
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
 
-    /// <summary>
-    /// MessageBeep: Воспроизводит стандартный системный звук.
-    /// uType: Определяет, какой звук воспроизводится.
-    /// </summary>
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-    private static extern bool MessageBeep(uint uType);
+    private const uint WM_SETSTYLE = 0x007B;
+    private const int GWL_STYLE = -16;
+    private const int GWL_EXSTYLE = -20;
+    private const uint WS_BORDER = 0x00800000;
+    private const uint WS_TABSTOP = 0x00010000;
+    private const uint WS_DISABLED = 0x08000000;
+    private const uint WS_VISIBLE = 0x10000000;
 
-    // --- Константы для MessageBeep ---
-    // Эти константы определяют, какие стандартные системные звуки будут воспроизведены.
-    // Полный список можно найти в документации Microsoft.
-    private const uint MB_OK = 0x00000000;        // Стандартный звук OK (обычно стрелка)
-    private const uint MB_ICONERROR = 0x00000010;   // Звук ошибки (критический сигнал)
-    private const uint MB_ICONQUESTION = 0x00000020; // Звук вопроса (символ вопроса)
-    private const uint MB_ICONWARNING = 0x00000030;  // Звук предупреждения (восклицательный знак)
-    private const uint MB_ICONINFORMATION = 0x00000040; // Звук информации (буква "i")
-    private const uint MB_SOUND = 0x00010000;     // Флаг, указывающий, что нужно проиграть звук (некоторые типы могут его игнорировать)
-    private const uint SIMPLEBEEP = unchecked((uint)-1); // Простой системный звук, похожий на Beep, но системный
+    private const string TextBoxClassName = "Edit";
+    private const string ButtonClassName = "Button";
+    private const string LabelClassName = "Static";
 
-    public static void Main(string[] args)
+    private TextBox nameTextBox;
+    private TextBox ageTextBox;
+    private Button greetButton;
+    private Button closeButton;
+    private Label infoLabel;
+    private CheckBox enableCheckBox;
+
+    public Form1()
     {
-        Console.WriteLine("--- Приложение для генерации звуковых сигналов ---");
+        InitializeComponent();
+        this.Text = "Оконное приложение для стилизации";
 
-        // --- Настройка параметров ---
-        uint beepFrequency = 440;       // Частота для Beep (например, A4 нота - 440 Гц)
-        uint beepDuration = 500;        // Длительность Beep в миллисекундах (0.5 секунды)
-        int intervalMs = 1000;          // Интервал между сигналами в миллисекундах (1 секунда)
-        int numberOfSignals = 5;        // Количество генерируемых сигналов
+        nameTextBox = new TextBox { Location = new Point(20, 20), Size = new Size(200, 20), Name = "NameTextBox" };
+        this.Controls.Add(nameTextBox);
 
-        Console.WriteLine($"Параметры: Частота Beep={beepFrequency} Гц, Длительность Beep={beepDuration} мс, Интервал={intervalMs} мс, Количество={numberOfSignals}");
-        Console.WriteLine("Нажмите Enter для начала...");
-        Console.ReadLine();
+        ageTextBox = new TextBox { Location = new Point(20, 60), Size = new Size(200, 20), Name = "AgeTextBox" };
+        this.Controls.Add(ageTextBox);
 
-        // --- Генерация звуковых сигналов ---
-        for (int i = 0; i < numberOfSignals; i++)
-        {
-            Console.WriteLine($"\nГенерация сигнала №{i + 1}...");
+        greetButton = new Button { Location = new Point(20, 100), Size = new Size(120, 30), Text = "Приветствие", Name = "GreetButton" };
+        this.Controls.Add(greetButton);
+        greetButton.Click += GreetButton_Click;
 
-            // 1. Воспроизводим простой звуковой сигнал с помощью Beep
-            Console.WriteLine($"  - Воспроизведение Beep (частота: {beepFrequency} Гц, длительность: {beepDuration} мс)");
-            if (!Beep(beepFrequency, beepDuration))
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  Ошибка при вызове Beep. Код ошибки: {Marshal.GetLastWin32Error()}");
-                Console.ResetColor();
-            }
-            else
-            {
-                Console.WriteLine("  Beep успешно проигран.");
-            }
+        closeButton = new Button { Location = new Point(160, 100), Size = new Size(60, 30), Text = "Закрыть", Name = "CloseButton" };
+        this.Controls.Add(closeButton);
+        closeButton.Click += CloseButton_Click;
 
-            // Небольшая пауза между Beep и MessageBeep, чтобы они не сливались
-            Thread.Sleep(intervalMs / 4); // Например, 1/4 интервала
+        infoLabel = new Label { Location = new Point(20, 150), Size = new Size(200, 50), Text = "Введите данные выше.", BorderStyle = BorderStyle.Fixed3D, Name = "InfoLabel" };
+        this.Controls.Add(infoLabel);
 
-            // 2. Воспроизводим стандартный системный звук с помощью MessageBeep
-            // Пример: простой системный звук (аналог Beep)
-            Console.WriteLine($"  - Воспроизведение MessageBeep (тип: SIMPLEBEEP)");
-            if (!MessageBeep(SIMPLEBEEP))
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  Ошибка при вызове MessageBeep (SIMPLEBEEP). Код ошибки: {Marshal.GetLastWin32Error()}");
-                Console.ResetColor();
-            }
-            else
-            {
-                Console.WriteLine("  MessageBeep (SIMPLEBEEP) успешно проигран.");
-            }
+        enableCheckBox = new CheckBox { Location = new Point(20, 210), Size = new Size(150, 20), Text = "Включить/Отключить", Name = "EnableCheckBox" };
+        this.Controls.Add(enableCheckBox);
+        enableCheckBox.CheckedChanged += EnableCheckBox_CheckedChanged;
 
-            // Пример: другой системный звук (например, звук ошибки)
-            Thread.Sleep(intervalMs / 4); // Еще одна короткая пауза
-            Console.WriteLine($"  - Воспроизведение MessageBeep (тип: MB_ICONERROR)");
-            if (!MessageBeep(MB_ICONERROR))
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  Ошибка при вызове MessageBeep (MB_ICONERROR). Код ошибки: {Marshal.GetLastWin32Error()}");
-                Console.ResetColor();
-            }
-            else
-            {
-                Console.WriteLine("  MessageBeep (MB_ICONERROR) успешно проигран.");
-            }
-
-
-            // 3. Ожидаем заданный интервал перед следующим сигналом
-            if (i < numberOfSignals - 1) // Не ждем после последнего сигнала
-            {
-                Console.WriteLine($"\n  Ожидание {intervalMs} мс до следующего сигнала...");
-                Thread.Sleep(intervalMs);
-            }
-        }
-
-        Console.WriteLine("\n--- Генерация звуковых сигналов завершена ---");
-        Console.WriteLine("Нажмите любую клавишу для выхода.");
-        Console.ReadKey();
+        this.Size = new Size(260, 300);
     }
+
+    private void GreetButton_Click(object sender, EventArgs e) { /* ... */ }
+    private void CloseButton_Click(object sender, EventArgs e) { this.Close(); }
+    private void EnableCheckBox_CheckedChanged(object sender, EventArgs e)
+    {
+        bool isEnabled = enableCheckBox.Checked;
+        nameTextBox.Enabled = isEnabled;
+        ageTextBox.Enabled = isEnabled;
+        greetButton.Enabled = isEnabled;
+        infoLabel.Enabled = isEnabled;
+    }
+
+    private System.ComponentModel.IContainer components = null;
+    protected override void Dispose(bool disposing) { if (disposing && (components != null)) components.Dispose(); base.Dispose(disposing); }
+    #region Windows Form Designer generated code
+    private void InitializeComponent() { /* ... */ }
+    #endregion
 }
