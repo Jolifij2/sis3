@@ -1,0 +1,111 @@
+using System;
+using System.Runtime.InteropServices; // Для P/Invoke
+using System.Threading;             // Для Thread.Sleep
+
+public class SoundSignalApp
+{
+    // --- Импорт функций Windows API ---
+
+    /// <summary>
+    /// Beep: Издает простой звуковой сигнал.
+    /// frequency: Частота звука в Герцах (Гц). Диапазон: 37-32767.
+    /// duration: Длительность звука в миллисекундах (мс).
+    /// </summary>
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern bool Beep(uint frequency, uint duration);
+
+    /// <summary>
+    /// MessageBeep: Воспроизводит стандартный системный звук.
+    /// uType: Определяет, какой звук воспроизводится.
+    /// </summary>
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern bool MessageBeep(uint uType);
+
+    // --- Константы для MessageBeep ---
+    // Эти константы определяют, какие стандартные системные звуки будут воспроизведены.
+    // Полный список можно найти в документации Microsoft.
+    private const uint MB_OK = 0x00000000;        // Стандартный звук OK (обычно стрелка)
+    private const uint MB_ICONERROR = 0x00000010;   // Звук ошибки (критический сигнал)
+    private const uint MB_ICONQUESTION = 0x00000020; // Звук вопроса (символ вопроса)
+    private const uint MB_ICONWARNING = 0x00000030;  // Звук предупреждения (восклицательный знак)
+    private const uint MB_ICONINFORMATION = 0x00000040; // Звук информации (буква "i")
+    private const uint MB_SOUND = 0x00010000;     // Флаг, указывающий, что нужно проиграть звук (некоторые типы могут его игнорировать)
+    private const uint SIMPLEBEEP = unchecked((uint)-1); // Простой системный звук, похожий на Beep, но системный
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("--- Приложение для генерации звуковых сигналов ---");
+
+        // --- Настройка параметров ---
+        uint beepFrequency = 440;       // Частота для Beep (например, A4 нота - 440 Гц)
+        uint beepDuration = 500;        // Длительность Beep в миллисекундах (0.5 секунды)
+        int intervalMs = 1000;          // Интервал между сигналами в миллисекундах (1 секунда)
+        int numberOfSignals = 5;        // Количество генерируемых сигналов
+
+        Console.WriteLine($"Параметры: Частота Beep={beepFrequency} Гц, Длительность Beep={beepDuration} мс, Интервал={intervalMs} мс, Количество={numberOfSignals}");
+        Console.WriteLine("Нажмите Enter для начала...");
+        Console.ReadLine();
+
+        // --- Генерация звуковых сигналов ---
+        for (int i = 0; i < numberOfSignals; i++)
+        {
+            Console.WriteLine($"\nГенерация сигнала №{i + 1}...");
+
+            // 1. Воспроизводим простой звуковой сигнал с помощью Beep
+            Console.WriteLine($"  - Воспроизведение Beep (частота: {beepFrequency} Гц, длительность: {beepDuration} мс)");
+            if (!Beep(beepFrequency, beepDuration))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  Ошибка при вызове Beep. Код ошибки: {Marshal.GetLastWin32Error()}");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.WriteLine("  Beep успешно проигран.");
+            }
+
+            // Небольшая пауза между Beep и MessageBeep, чтобы они не сливались
+            Thread.Sleep(intervalMs / 4); // Например, 1/4 интервала
+
+            // 2. Воспроизводим стандартный системный звук с помощью MessageBeep
+            // Пример: простой системный звук (аналог Beep)
+            Console.WriteLine($"  - Воспроизведение MessageBeep (тип: SIMPLEBEEP)");
+            if (!MessageBeep(SIMPLEBEEP))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  Ошибка при вызове MessageBeep (SIMPLEBEEP). Код ошибки: {Marshal.GetLastWin32Error()}");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.WriteLine("  MessageBeep (SIMPLEBEEP) успешно проигран.");
+            }
+
+            // Пример: другой системный звук (например, звук ошибки)
+            Thread.Sleep(intervalMs / 4); // Еще одна короткая пауза
+            Console.WriteLine($"  - Воспроизведение MessageBeep (тип: MB_ICONERROR)");
+            if (!MessageBeep(MB_ICONERROR))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  Ошибка при вызове MessageBeep (MB_ICONERROR). Код ошибки: {Marshal.GetLastWin32Error()}");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.WriteLine("  MessageBeep (MB_ICONERROR) успешно проигран.");
+            }
+
+
+            // 3. Ожидаем заданный интервал перед следующим сигналом
+            if (i < numberOfSignals - 1) // Не ждем после последнего сигнала
+            {
+                Console.WriteLine($"\n  Ожидание {intervalMs} мс до следующего сигнала...");
+                Thread.Sleep(intervalMs);
+            }
+        }
+
+        Console.WriteLine("\n--- Генерация звуковых сигналов завершена ---");
+        Console.WriteLine("Нажмите любую клавишу для выхода.");
+        Console.ReadKey();
+    }
+}
