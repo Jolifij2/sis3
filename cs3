@@ -1,0 +1,148 @@
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+
+public class Program
+{
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern int GetWindowTextLength(IntPtr hWnd);
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern int GetWindowText(IntPtr hWnd, [MarshalAs(UnmanagedType.LPWStr)] StringBuilder lpString, int nMaxCount);
+
+    private const uint WM_SETSTYLE = 0x007B;
+    private const int GWL_STYLE = -16;
+    private const int GWL_EXSTYLE = -20;
+
+    private const uint WS_BORDER = 0x00800000;
+    private const uint WS_TABSTOP = 0x00010000;
+    private const uint WS_DISABLED = 0x08000000;
+    private const uint WS_VISIBLE = 0x10000000;
+    private const uint WS_EX_CLIENTEDGE = 0x00000002;
+
+    private const string TextBoxClassName = "Edit";
+    private const string ButtonClassName = "Button";
+    private const string LabelClassName = "Static";
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("--- Управляющее приложение для стилей элементов ---");
+
+        string targetAppTitle = "Оконное приложение для стилизации";
+        Console.WriteLine($"Ищем главное окно: '{targetAppTitle}'...");
+
+        IntPtr mainWindowHandle = FindWindow(null, targetAppTitle);
+        if (mainWindowHandle == IntPtr.Zero) { /* ... ошибка ... */ return; }
+        Console.WriteLine($"Главное окно найдено! Handle: {mainWindowHandle}");
+
+        IntPtr nameTextBoxHandle = FindWindowEx(mainWindowHandle, IntPtr.Zero, TextBoxClassName, null);
+        IntPtr ageTextBoxHandle = FindWindowEx(mainWindowHandle, nameTextBoxHandle, TextBoxClassName, null);
+        IntPtr greetButtonHandle = FindWindowEx(mainWindowHandle, IntPtr.Zero, ButtonClassName, null);
+        IntPtr closeButtonHandle = FindWindowEx(mainWindowHandle, greetButtonHandle, ButtonClassName, null);
+        IntPtr infoLabelHandle = FindWindowEx(mainWindowHandle, IntPtr.Zero, LabelClassName, null);
+        IntPtr enableCheckBoxHandle = FindWindowEx(mainWindowHandle, greetButtonHandle, ButtonClassName, null);
+
+        if (nameTextBoxHandle == IntPtr.Zero || ageTextBoxHandle == IntPtr.Zero || greetButtonHandle == IntPtr.Zero || closeButtonHandle == IntPtr.Zero || infoLabelHandle == IntPtr.Zero || enableCheckBoxHandle == IntPtr.Zero)
+        {
+            Console.WriteLine("Предупреждение: Не все элементы управления удалось найти.");
+        } else { Console.WriteLine("Элементы управления найдены."); }
+
+        Console.WriteLine("\nВыберите стили:");
+        Console.WriteLine("1. Текстовые поля (рамка, отключение)");
+        Console.WriteLine("2. Кнопки (неактивность, TabStop)");
+        Console.WriteLine("3. Метка (невидимость)");
+        Console.WriteLine("4. CheckBox (видимость)");
+        Console.WriteLine("5. Все стили");
+
+        string choice = Console.ReadLine();
+
+        switch (choice)
+        {
+            case "1": StyleTextBoxes(nameTextBoxHandle, ageTextBoxHandle); break;
+            case "2": StyleButtons(greetButtonHandle, closeButtonHandle); break;
+            case "3": StyleLabel(infoLabelHandle); break;
+            case "4": ToggleCheckBox(enableCheckBoxHandle); break;
+            case "5": StyleTextBoxes(nameTextBoxHandle, ageTextBoxHandle); StyleButtons(greetButtonHandle, closeButtonHandle); StyleLabel(infoLabelHandle); ToggleCheckBox(enableCheckBoxHandle); break;
+            default: Console.WriteLine("Неверный выбор."); break;
+        }
+
+        Console.WriteLine("\nОперация завершена. Нажмите любую клавишу.");
+        Console.ReadKey();
+    }
+
+    private static void StyleTextBoxes(IntPtr tb1Handle, IntPtr tb2Handle)
+    {
+        Console.WriteLine("Стилизация текстовых полей...");
+        ApplyStyle(tb1Handle, GWL_STYLE, WS_BORDER, true);
+        ApplyStyle(tb1Handle, GWL_EXSTYLE, WS_EX_CLIENTEDGE, true);
+        ApplyStyle(tb1Handle, GWL_STYLE, WS_TABSTOP, true);
+        ApplyStyle(tb2Handle, GWL_STYLE, WS_BORDER, true);
+        ApplyStyle(tb2Handle, GWL_EXSTYLE, WS_EX_CLIENTEDGE, true);
+        ApplyStyle(tb2Handle, GWL_STYLE, WS_TABSTOP, true);
+        ApplyStyle(tb2Handle, GWL_STYLE, WS_DISABLED, true); // Отключить
+    }
+
+    private static void StyleButtons(IntPtr btn1Handle, IntPtr btn2Handle)
+    {
+        Console.WriteLine("Стилизация кнопок...");
+        ApplyStyle(btn1Handle, GWL_STYLE, WS_DISABLED, true); // Отключить кнопку "Приветствие"
+        ToggleStyle(btn2Handle, GWL_STYLE, WS_TABSTOP); // Переключить TabStop кнопки "Закрыть"
+    }
+
+    private static void StyleLabel(IntPtr labelHandle)
+    {
+        Console.WriteLine("Стилизация метки...");
+        ApplyStyle(labelHandle, GWL_STYLE, WS_VISIBLE, false); // Сделать невидимой
+    }
+
+    private static void ToggleCheckBox(IntPtr cbHandle)
+    {
+        Console.WriteLine("Стилизация CheckBox...");
+        ToggleStyle(cbHandle, GWL_STYLE, WS_VISIBLE); // Переключить видимость
+    }
+
+    private static void ApplyStyle(IntPtr hWnd, int index, uint styleMask, bool enable)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        IntPtr currentStylePtr = GetWindowLongPtr(hWnd, index);
+        uint currentStyle = (uint)currentStylePtr.ToInt64();
+        uint newStyle = enable ? (currentStyle | styleMask) : (currentStyle & ~styleMask);
+        if (newStyle != currentStyle)
+        {
+            SetWindowLongPtr(hWnd, index, new IntPtr(newStyle));
+        }
+    }
+
+    private static void ToggleStyle(IntPtr hWnd, int index, uint styleMask)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        IntPtr currentStylePtr = GetWindowLongPtr(hWnd, index);
+        uint currentStyle = (uint)currentStylePtr.ToInt64();
+        bool isStylePresent = (currentStyle & styleMask) != 0;
+        ApplyStyle(hWnd, index, styleMask, !isStylePresent);
+    }
+
+    private static string GetWindowText(IntPtr hWnd)
+    {
+        int length = GetWindowTextLength(hWnd);
+        if (length == 0) return string.Empty;
+        StringBuilder builder = new StringBuilder(length + 1);
+        GetWindowText(hWnd, builder, builder.Capacity);
+        return builder.ToString();
+    }
+}
